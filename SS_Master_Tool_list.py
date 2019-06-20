@@ -34,12 +34,14 @@ class Master_List(tk.Tk):
 #     folder_pick.unbind('<ButtonRelease-1>')
 #     process.bind('<ButtonRelease-1>', extract)
         print(self.folder_selected)
+        self.parse_files(self.folder_selected)
 
-    # def parse_files(self, folder, pattern):
-    #     self.folder = folder
+    def parse_files(self, folder):
+        self.folder = folder
     #     self.pattern = pattern
-    #     os.chdir(folder)
-    #     files = os.listdir()
+        os.chdir(folder)
+        files = os.listdir()
+        print(files)
     #     for item in files:
     #         if os.path.isdir(item):
     #             continue
