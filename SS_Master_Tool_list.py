@@ -3,7 +3,7 @@ cutting tool usage data and file count by programmer.
 Note - Toolist file location is hard coded.'''
 
 import os
-# import re
+import re
 # from collections import Counter
 import tkinter as tk
 # from tkinter import ttk
@@ -34,14 +34,18 @@ class Master_List(tk.Tk):
 #     folder_pick.unbind('<ButtonRelease-1>')
 #     process.bind('<ButtonRelease-1>', extract)
         print(self.folder_selected)
-        self.parse_files(self.folder_selected)
+        # self.pattern = re.compile(r'16\dZ[56]')
+        self.pattern = ('450Z4431-501-SP1A.MH13')
+        self.parse_files(self.folder_selected, self.pattern)
 
-    def parse_files(self, folder):
+    def parse_files(self, folder, pattern):
         self.folder = folder
-    #     self.pattern = pattern
+        self.pattern = pattern
         os.chdir(folder)
         files = os.listdir()
         print(files)
+        if self.pattern in files:
+            print('poop')
     #     for item in files:
     #         if os.path.isdir(item):
     #             continue
