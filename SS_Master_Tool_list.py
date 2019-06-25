@@ -34,8 +34,7 @@ class Master_List(tk.Tk):
 #     folder_pick.unbind('<ButtonRelease-1>')
 #     process.bind('<ButtonRelease-1>', extract)
         print(self.folder_selected)
-        # self.pattern = re.compile(r'16\dZ[56]')
-        self.pattern = ('450Z4431-501-SP1A.MH13')
+        self.pattern = re.compile(r'16\dZ[56]\d+-\d.*')
         self.parse_files(self.folder_selected, self.pattern)
 
     def parse_files(self, folder, pattern):
@@ -43,9 +42,15 @@ class Master_List(tk.Tk):
         self.pattern = pattern
         os.chdir(folder)
         files = os.listdir()
-        print(files)
-        if self.pattern in files:
-            print('poop')
+        # print(files)
+        selectobj = filter(self.pattern.search, files)
+        poopoo = []
+        for i in selectobj:
+            poopoo.append(i)
+            print(len(poopoo))
+
+        # if self.pattern in files:
+        #     print('poop')
     #     for item in files:
     #         if os.path.isdir(item):
     #             continue
