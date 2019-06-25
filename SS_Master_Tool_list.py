@@ -4,13 +4,13 @@ Note - Toolist file location is hard coded.'''
 
 import os
 import re
-# from collections import Counter
+from collections import Counter
 import tkinter as tk
 # from tkinter import ttk
 from tkinter import filedialog  # noqa: F401
-# from openpyxl import Workbook
-# from openpyxl import load_workbook
-# from openpyxl.styles import Border, Side, Alignment, Font, NamedStyle
+from openpyxl import Workbook
+from openpyxl import load_workbook
+from openpyxl.styles import Border, Side, Alignment, Font, NamedStyle
 
 
 class Master_List(tk.Tk):
@@ -34,7 +34,8 @@ class Master_List(tk.Tk):
 #     folder_pick.unbind('<ButtonRelease-1>')
 #     process.bind('<ButtonRelease-1>', extract)
         print(self.folder_selected)
-        self.pattern = re.compile(r'16\dZ[56]\d+-\d.*')
+        self.pattern = re.compile(r'411Z91\d+-\w.*')
+        # self.pattern = re.compile(r'16\dZ[56]\d+-\d.*')
         self.parse_files(self.folder_selected, self.pattern)
 
     def parse_files(self, folder, pattern):
@@ -43,108 +44,111 @@ class Master_List(tk.Tk):
         os.chdir(folder)
         files = os.listdir()
         # print(files)
-        selectobj = filter(self.pattern.search, files)
-        poopoo = []
-        for i in selectobj:
-            poopoo.append(i)
-            print(len(poopoo))
+        match = filter(self.pattern.search, files)
+        target_files = []
+        for item in match:
+            target_files.append(item)
+            # print(len(target_files))
+        pattern = re.compile(r'T\d+')
+        tool_list = []  # Combination of sets w/ duplicates - needed for Counter
+        test_set = set()
+        for item in target_files:
+            if os.path.isdir(item):
+                continue
+            bin_file = Master_List.is_binary(self, item)
+            if bin_file:
+                continue
+            with open(item, 'r') as f:
+                file_contents = f.read()
+                match = pattern.findall(file_contents)
+                for item in match:
+                    test_set.add(item)
+                self.result_dict[item] = set(match)
+        print(test_set)
+        # self.usage_count(self, self.result_dict)
 
-        # if self.pattern in files:
-        #     print('poop')
-    #     for item in files:
-    #         if os.path.isdir(item):
-    #             continue
-    #         bin_file = Master_List.is_binary(item)
-    #         if bin_file:
-    #             continue
-    #         with open(item, 'r') as f:
-    #             file_contents = f.read()
-    #             match = pattern.findall(file_contents)
-    #             self.result_dict[item] = set(match)
-    #     self.usage_count(self.result_dict)
+    def is_binary(self, file_name):
+        ''' Fuction tries to open file as test and returns boolean'''
+        try:
+            with open(file_name, 'tr') as check_file:
+                check_file.read()
+                return False
+        except UnicodeDecodeError:
+            return True
 
-    # def is_binary(self, file_name):
-    #     ''' Fuction tries to open file as test and returns boolean'''
-    #     try:
-    #         with open(file_name, 'tr') as check_file:
-    #             check_file.read()
-    #             return False
-    #     except UnicodeDecodeError:
-    #         return True
+    def usage_count(self, parsed_data):
+        ''' Returns dictionary with tool number as key and
+        number of times used as value'''
+        all_file_tool_list = []
+        for key, value in parsed_data.items():
+            for item in value:
+                all_file_tool_list.append(item)
+        x = (s.strip('T') for s in all_file_tool_list)
+        y = (s.replace('T', '') for s in x)
+        new_tool_list = []
+        for item in y:
+            if item == '0' or item == '239' or int(item) > 300:
+                continue
+            new_tool_list.append(int(item))
+        self.new_tool_list.sort()
+        temp_dict = Counter(new_tool_list)
+        for k, v in temp_dict.items():
+            self.new_dict[k] = v
+        self.single_use(self, self.new_dict)
 
-#     def usage_count(self, parsed_data):
-#         ''' Returns dictionary with tool number as key and
-#         number of times used as value'''
-#         all_file_tool_list = []
-#         for key, value in parsed_data.items():
-#             for item in value:
-#                 all_file_tool_list.append(item)
-#         x = (s.strip('T') for s in all_file_tool_list)
-#         y = (s.replace('T', '') for s in x)
-#         new_tool_list = []
-#         for item in y:
-#             if item == '0' or item == '239' or int(item) > 300:
-#                 continue
-#             new_tool_list.append(int(item))
-#         new_tool_list.sort()
-#         temp_dict = Counter(new_tool_list)
-#         for k, v in temp_dict.items():
-#             Parse_Files.new_dict[k] = v
-#         Parse_Files.single_use(Parse_Files.new_dict)
+    def single_use(self, new_dict):
+        '''Returns dictionary with tool number as key and
+        file name as value for tools used in only one file'''
+        single = []
+        for keys, values in self.new_dict.items():
+            if values == 1:
+                single.append(keys)
+        for tnum in single:
+            for k, v in self.result_dict.items():
+                for i in v:
+                    if i == r'T{}'.format(tnum):
+                        self.single_list[tnum] = k
 
-#     def single_use(self, new_dict):
-#         '''Returns dictionary with tool number as key and
-#         file name as value for tools used in only one file'''
-#         single = []
-#         for keys, values in Parse_Files.new_dict.items():
-#             if values == 1:
-#                 single.append(keys)
-#         for tnum in single:
-#             for k, v in Parse_Files.result_dict.items():
-#                 for i in v:
-#                     if i == r'T{}'.format(tnum):
-#                         Parse_Files.single_list[tnum] = k
+    def get_ct_number(self, in_data):
+        '''Gets CT number from master tool lis file.'''
+        self.machine = choose_machine_combo.get()
+        tl = 'C:/Users/dkjje/Google Drive/King Machine Cutting Tool List.xlsx'
+        wb = load_workbook(filename=tl)
+        sh1 = wb.active
+        t_data = {}
+        for key in in_data:
+            for cell1, cell2, cell3, cell4 in zip(sh1['A'], sh1['E'],
+                                                  sh1['C'], sh1['J']):
+                if cell1.value == key and cell2.value == self.machine:
+                    t_data[key] = (cell3.value, cell4.value)
+        return t_data
 
-#     def get_ct_number(self, in_data):
-#         '''Gets CT number from master tool lis file.'''
-#         Parse_Files.machine = choose_machine_combo.get()
-#         tl = 'C:/Users/dkjje/Google Drive/King Machine Cutting Tool List.xlsx'
-#         wb = load_workbook(filename=tl)
-#         sh1 = wb.active
-#         t_data = {}
-#         for key in in_data:
-#             for cell1, cell2, cell3, cell4 in zip(sh1['A'], sh1['E'],
-#                                                   sh1['C'], sh1['J']):
-#                 if cell1.value == key and cell2.value == Parse_Files.machine:
-#                     t_data[key] = (cell3.value, cell4.value)
-#         return t_data
-
-#     def extract_programmer(self):
-#         '''Retrieves programmer stats from files in folder'''
-#         os.chdir(Parse_Files.folder_selected)
-#         files = os.listdir()
-#         dave_count = 0
-#         john_count = 0
-#         no_name = 0
-#         for item in files:
-#             if os.path.isdir(item):
-#                 continue
-#             bin_file = Parse_Files.is_binary(item)
-#             if bin_file:
-#                 continue
-#             with open(item, 'r') as f:
-#                 file_data = f.read()
-#                 if 'DAVE' in file_data:
-#                     dave_count += 1
-#                 elif 'JOHN' in file_data:
-#                     john_count += 1
-#                 else:
-#                     no_name += 1
-#         dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
-#         john_percent = (john_count / (dave_count + john_count + no_name) * 100)
-#         no_name_percent = (no_name / (dave_count + john_count + no_name) * 100)
-#         return (dave_percent, john_percent, no_name_percent,
-#                 dave_count, john_count, no_name)
+    def extract_programmer(self):
+        '''Retrieves programmer stats from files in folder'''
+        os.chdir(self.folder_selected)
+        files = os.listdir()
+        dave_count = 0
+        john_count = 0
+        no_name = 0
+        for item in files:
+            if os.path.isdir(item):
+                continue
+            bin_file = self.is_binary(item)
+            if bin_file:
+                continue
+            with open(item, 'r') as f:
+                file_data = f.read()
+                if 'DAVE' in file_data:
+                    dave_count += 1
+                elif 'JOHN' in file_data:
+                    john_count += 1
+                else:
+                    no_name += 1
+        dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
+        john_percent = (john_count / (dave_count + john_count + no_name) * 100)
+        no_name_percent = (no_name / (dave_count + john_count + no_name) * 100)
+        return (dave_percent, john_percent, no_name_percent,
+                dave_count, john_count, no_name)
 
 
 # root = tk.Tk()
