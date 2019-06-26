@@ -38,20 +38,25 @@ def extract(event):
     '''Retrieves tool numbers used in all files in folder'''
     os.chdir(root.folder_selected)
     files = os.listdir()
-    pattern = re.compile(r'T\d+')
+    pattern1 = re.compile(r'T\d+')
+    pattern2 = re.compile(r'411Z91\d+-\w.*')
     tool_list = []  # Combination of sets w/ duplicates - needed for Counter
-    for item in files:
+    match = filter(pattern2.search, files)
+    target_files = []
+    for item in match:
         if os.path.isdir(item):
             continue
         bin_file = is_binary(item)
         if bin_file:
             continue
+        target_files.append(item)
         with open(item, 'r') as f:
             get_t_number = f.read()
-            match = pattern.findall(get_t_number)
-            tool_set = set(match)
+            match2 = pattern1.findall(get_t_number)
+            tool_set = set(match2)
             for item in tool_set:
                 tool_list.append(item)
+    # print(tool_list)
     x = (s.strip('T') for s in tool_list)  # Need to understand generators
     y = (s.replace('T', '') for s in x)
     new_tool_list = []
@@ -67,7 +72,7 @@ def extract(event):
         if values == 1:
             single_list.append(keys)  # List of tool #'s used in only one file
     single_use_tool_dict = {}
-    for item in files:
+    for item in target_files:
         if os.path.isdir(item):
             continue
         bin_file = is_binary(item)
@@ -123,7 +128,7 @@ def extract(event):
         sh2.cell(row=rnum, column=2).value = (values)
         rnum += 1
 
-    wb.save('C:/Users/dkjje/Google Drive/myPython/TestWrite.xlsx')
+    wb.save('C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/TestWrite.xlsx')
     file_listbox.insert(tk.END, 'Operation Complete')
     file_listbox.see(tk.END)
 
