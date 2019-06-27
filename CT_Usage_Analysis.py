@@ -115,7 +115,7 @@ class Parse_Files:
                 if 'DAVE' in file_data:
                     dave_count += 1
                 elif 'JOHN' in file_data:
-                        john_count += 1
+                    john_count += 1
                 else:
                     no_name += 1
         dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
