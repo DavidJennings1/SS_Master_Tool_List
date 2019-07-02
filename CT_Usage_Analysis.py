@@ -3,10 +3,12 @@ cutting tool usage data and file count by programmer.
 Note - Toolist file location is hard coded.'''
 
 # ToDo
-# Fix usage count to include only target files
-# Add holder column
+# get base part number from dave_list and john_list
+# unpack on line 276 has holder - see where it comes from
+# get rid of times used column
+# format column widths
 # Wrap in class
-# Add programmer list
+# Add programmer list sheet
 
 import os
 import re
@@ -29,6 +31,7 @@ root.single_list = {}
 root.result_dict = {}
 root.machine = ''
 root.folder_selected = ''
+root.target_files = []
 
 
 def choose_folder(event):
@@ -46,15 +49,15 @@ def extract(event):
     pattern2 = re.compile(r'411Z91\d+-\w.*')
 
     match1 = filter(pattern2.search, files)
-    target_files = []
+    # target_files = []
     for item in match1:
         if os.path.isdir(item):
             continue
         bin_file = is_binary(item)
         if bin_file:
             continue
-        target_files.append(item)
-    for item in target_files:
+        root.target_files.append(item)
+    for item in root.target_files:
         with open(item, 'r') as f:
             file_contents = f.read()
             match2 = pattern1.findall(file_contents)
@@ -116,39 +119,40 @@ def get_ct_number(in_data):
     sh1 = wb.active
     t_data = {}
     for key in in_data:
-        for cell1, cell2, cell3, cell4 in zip(sh1['A'], sh1['E'],
-                                              sh1['C'], sh1['J']):
+        for cell1, cell2, cell3, cell4, cell5 in zip(sh1['A'], sh1['E'],
+                                                     sh1['C'], sh1['J'],
+                                                     sh1['Y']):
             if cell1.value == key and cell2.value == root.machine:
-                t_data[key] = (cell3.value, cell4.value)
+                t_data[key] = (cell3.value, cell4.value, cell5.value)
     return t_data
 
 
 def extract_programmer():
     '''Retrieves programmer stats from files in folder'''
-    os.chdir(root.folder_selected)
-    files = os.listdir()
     dave_count = 0
     john_count = 0
     no_name = 0
-    for item in files:
-        if os.path.isdir(item):
-            continue
-        bin_file = is_binary(item)
-        if bin_file:
-            continue
+    dave_list = []
+    john_list = []
+    unknown = []
+    for item in root.target_files:
         with open(item, 'r') as f:
             file_data = f.read()
             if 'DAVE' in file_data:
+                dave_list.append(item)
                 dave_count += 1
             elif 'JOHN' in file_data:
+                john_list.append(item)
                 john_count += 1
             else:
+                unknown.append(item)
                 no_name += 1
     dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
     john_percent = (john_count / (dave_count + john_count + no_name) * 100)
     no_name_percent = (no_name / (dave_count + john_count + no_name) * 100)
+    print(unknown)
     return (dave_percent, john_percent, no_name_percent,
-            dave_count, john_count, no_name)
+            dave_count, john_count, no_name, dave_list, john_list, unknown)
 
 
 def max_length(eval_string):
@@ -208,7 +212,8 @@ def write_to_spreadsheet():
     wb.add_named_style(highlight)  # Register named style
     sh1 = wb.active
     sh1.title = 'Tool Usage Frequency'
-    sh1.append(['Tool Number', 'Times Used', 'CT Number', 'Description', 'Holder'])
+    sh1.append(['Tool Number', 'Times Used', 'CT Number', 'Description',
+                'Holder'])
     sh1['A1'].font = Font(bold=True, size=11)
     sh1['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
     sh1['A1'].alignment = Alignment(horizontal='center')
@@ -231,16 +236,18 @@ def write_to_spreadsheet():
     col_width2 = 0
     sh1_ct_data = get_ct_number(root.new_dict)
     for keys, values in root.new_dict.items():
-        sh1_tool_list_data = sh1_ct_data[keys]  #keys is tool number, value is times used
+        sh1_tool_list_data = sh1_ct_data[keys]  # keys is tool number, value is times used
         sh1.cell(row=rnum, column=1).value = int(keys)
         sh1.cell(row=rnum, column=2).value = int(values)
         sh1.cell(row=rnum, column=1).style = 'highlight'
         sh1.cell(row=rnum, column=2).style = 'highlight'
-        sh1_ct_num, sh1_description = sh1_tool_list_data
+        sh1_ct_num, sh1_description, sh1_holder = sh1_tool_list_data
         sh1.cell(row=rnum, column=3).value = sh1_ct_num
         sh1.cell(row=rnum, column=3).style = 'highlight'
         sh1.cell(row=rnum, column=4).value = sh1_description
         sh1.cell(row=rnum, column=4).style = 'highlight'
+        sh1.cell(row=rnum, column=5).value = sh1_holder
+        sh1.cell(row=rnum, column=5).style = 'highlight'
         if len(str(sh1_description)) > col_width2:
             col_width2 = len(str(sh1_description))
         rnum += 1
@@ -269,7 +276,7 @@ def write_to_spreadsheet():
     col_width3 = 0
     for keys, values in root.single_list.items():
         sh2_tool_list_data = sh1_ct_data[keys]
-        sh2_ct_num, sh2_description = sh2_tool_list_data
+        sh2_ct_num, sh2_description, holder = sh2_tool_list_data
         sh2.cell(row=rnum, column=1).value = int(keys)
         sh2.cell(row=rnum, column=2).value = (values)
         sh2.cell(row=rnum, column=1).style = 'highlight'
@@ -286,7 +293,7 @@ def write_to_spreadsheet():
     sh3 = wb.create_sheet(title='Programmer Stats')
     wb.active = 3
     prog_stat = extract_programmer()
-    dp, jp, np, dc, jc, nc = prog_stat
+    dp, jp, np, dc, jc, nc, dl, jl, ul = prog_stat
     sh3.append(['Programmer', '# Programmed', '% Programmed'])
     sh3['A1'].font = Font(bold=True, size=11)
     sh3['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
