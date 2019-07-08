@@ -32,6 +32,7 @@ root.result_dict = {}
 root.machine = ''
 root.folder_selected = ''
 root.target_files = []
+root.programmer = {}
 
 
 def choose_folder(event):
@@ -58,11 +59,13 @@ def extract(event):
             continue
         root.target_files.append(item)
     for item in root.target_files:
+        # item = item.replace('A', '')
+        # print(item)
         with open(item, 'r') as f:
             file_contents = f.read()
             match2 = pattern1.findall(file_contents)
             root.result_dict[item] = set(match2)
-    usage_count(root.result_dict)
+        usage_count(root.result_dict)
     write_to_spreadsheet()
 
 
@@ -114,7 +117,8 @@ def single_use(new_dict):
 def get_ct_number(in_data):
     '''Gets CT number from master tool list file.'''
     root.machine = choose_machine_combo.get()
-    tl = 'C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
+    tl = 'C:/Users/dkjje/Desktop/Programming/Python_Projects/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
+    # tl = 'C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
     wb = load_workbook(filename=tl)
     sh1 = wb.active
     t_data = {}
@@ -135,22 +139,31 @@ def extract_programmer():
     dave_list = []
     john_list = []
     unknown = []
+    root.dave_list_set = set()
+
     for item in root.target_files:
         with open(item, 'r') as f:
             file_data = f.read()
             if 'DAVE' in file_data:
+                root.programmer[item] = 'Dave'
                 dave_list.append(item)
+                for item in dave_list:
+                    item = item.replace('A', '').replace('B', '')
+                    root.dave_list_set.add(item)
                 dave_count += 1
             elif 'JOHN' in file_data:
+                root.programmer[item] = 'John'
                 john_list.append(item)
                 john_count += 1
             else:
                 unknown.append(item)
+                root.programmer[item] = 'Unknown'
                 no_name += 1
+    print(root.dave_list_set)
     dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
     john_percent = (john_count / (dave_count + john_count + no_name) * 100)
     no_name_percent = (no_name / (dave_count + john_count + no_name) * 100)
-    print(unknown)
+    # print(root.programmer)
     return (dave_percent, john_percent, no_name_percent,
             dave_count, john_count, no_name, dave_list, john_list, unknown)
 
@@ -289,42 +302,29 @@ def write_to_spreadsheet():
             col_width3 = len(str(sh2_description))
         rnum += 1
     sh2.column_dimensions['D'].width = (col_width3 * 1.125)
+
     # ----------------------------------------------------------
-    sh3 = wb.create_sheet(title='Programmer Stats')
+    sh3 = wb.create_sheet(title='Programmer')
     wb.active = 3
-    prog_stat = extract_programmer()
-    dp, jp, np, dc, jc, nc, dl, jl, ul = prog_stat
-    sh3.append(['Programmer', '# Programmed', '% Programmed'])
+    programmed_by = extract_programmer()
+    dp, jp, np, dc, jc, nc, dl, jl, ul = programmed_by
+    sh3.append(['Part Number', 'Programmer'])
     sh3['A1'].font = Font(bold=True, size=11)
     sh3['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
     sh3['A1'].alignment = Alignment(horizontal='center')
     sh3['B1'].font = Font(bold=True)
     sh3['B1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
     sh3['B1'].alignment = Alignment(horizontal='center')
-    sh3['C1'].font = Font(bold=True)
-    sh3['C1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
-    sh3['C1'].alignment = Alignment(horizontal='center')
-    sh3.cell(row=2, column=1).value = 'Dave'
-    sh3.cell(row=2, column=1).style = 'highlight'
-    sh3.cell(row=2, column=3).value = dp
-    sh3.cell(row=2, column=3).style = 'highlight'
-    sh3.cell(row=2, column=2).value = dc
-    sh3.cell(row=2, column=2).style = 'highlight'
-    sh3.cell(row=3, column=1).value = 'John'
-    sh3.cell(row=3, column=1).style = 'highlight'
-    sh3.cell(row=3, column=3).value = jp
-    sh3.cell(row=3, column=3).style = 'highlight'
-    sh3.cell(row=3, column=2).value = jc
-    sh3.cell(row=3, column=2).style = 'highlight'
-    sh3.cell(row=4, column=1).value = 'No Name'
-    sh3.cell(row=4, column=1).style = 'highlight'
-    sh3.cell(row=4, column=3).value = np
-    sh3.cell(row=4, column=3).style = 'highlight'
-    sh3.cell(row=4, column=2).value = nc
-    sh3.cell(row=4, column=2).style = 'highlight'
-    sh3.column_dimensions['A'].width = (11)
-    sh3.column_dimensions['B'].width = (15)
-    sh3.column_dimensions['C'].width = (16)
+    rnum = 2
+    for item in root.dave_list_set:
+    # for keys, values in root.programmer.items():
+
+        sh3.cell(row=rnum, column=2).value = 'Dave'
+        sh3.cell(row=2, column=2).style = 'highlight'
+        sh3.cell(row=rnum, column=1).value = item
+        sh3.cell(row=2, column=1).style = 'highlight'
+        rnum += 1
+
     save_name = (('{}/{} Tool Usage Data.xlsx').format
                  (root.folder_selected, root.machine))
     wb.save(save_name)
