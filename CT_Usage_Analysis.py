@@ -47,10 +47,10 @@ def extract(event):
     os.chdir(root.folder_selected)
     files = os.listdir()
     pattern1 = re.compile(r'T\d+')
-    pattern2 = re.compile(r'411Z91\d+-\w.*')
+    pattern2 = re.compile(r'(411Z91\d+-\w*\.(MC12|mc12))|(112A5251-60.*)')
+    # pattern2 = re.compile(r'112A5251-60.*')
 
     match1 = filter(pattern2.search, files)
-    # target_files = []
     for item in match1:
         if os.path.isdir(item):
             continue
@@ -59,13 +59,12 @@ def extract(event):
             continue
         root.target_files.append(item)
     for item in root.target_files:
-        # item = item.replace('A', '')
-        # print(item)
         with open(item, 'r') as f:
             file_contents = f.read()
             match2 = pattern1.findall(file_contents)
             root.result_dict[item] = set(match2)
         usage_count(root.result_dict)
+    # print(root.target_files)
     write_to_spreadsheet()
 
 
@@ -97,6 +96,7 @@ def usage_count(parsed_data):
     temp_dict = Counter(new_tool_list)
     for k, v in temp_dict.items():
         root.new_dict[k] = v
+    print(root.new_dict)
     single_use(root.new_dict)
 
 
@@ -117,8 +117,8 @@ def single_use(new_dict):
 def get_ct_number(in_data):
     '''Gets CT number from master tool list file.'''
     root.machine = choose_machine_combo.get()
-    tl = 'C:/Users/dkjje/Desktop/Programming/Python_Projects/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
-    # tl = 'C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
+    # tl = 'C:/Users/dkjje/Desktop/Programming/Python_Projects/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
+    tl = 'C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
     wb = load_workbook(filename=tl)
     sh1 = wb.active
     t_data = {}
@@ -140,6 +140,8 @@ def extract_programmer():
     john_list = []
     unknown = []
     root.dave_list_set = set()
+    root.john_list_set = set()
+    root.unknown_list_set = set()
 
     for item in root.target_files:
         with open(item, 'r') as f:
@@ -148,18 +150,26 @@ def extract_programmer():
                 root.programmer[item] = 'Dave'
                 dave_list.append(item)
                 for item in dave_list:
-                    item = item.replace('A', '').replace('B', '')
+                    item = item.replace('A.', '.').replace('B.', '.')
                     root.dave_list_set.add(item)
                 dave_count += 1
             elif 'JOHN' in file_data:
                 root.programmer[item] = 'John'
                 john_list.append(item)
+                for item in john_list:
+                    item = item.replace('A.', '.').replace('B.', '.')
+                    root.john_list_set.add(item)
                 john_count += 1
             else:
                 unknown.append(item)
                 root.programmer[item] = 'Unknown'
+                for item in unknown:
+                    item = item.replace('A.', '.').replace('B.', '.')
+                    root.unknown_list_set.add(item)
                 no_name += 1
-    print(root.dave_list_set)
+    root.sorted_dave = sorted(root.dave_list_set)
+    root.sorted_john = sorted(root.john_list_set)
+    # print(root.sorted_dave)
     dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
     john_percent = (john_count / (dave_count + john_count + no_name) * 100)
     no_name_percent = (no_name / (dave_count + john_count + no_name) * 100)
@@ -225,7 +235,7 @@ def write_to_spreadsheet():
     wb.add_named_style(highlight)  # Register named style
     sh1 = wb.active
     sh1.title = 'Tool Usage Frequency'
-    sh1.append(['Tool Number', 'Times Used', 'CT Number', 'Description',
+    sh1.append(['Tool Number', 'CT Number', 'Description',
                 'Holder'])
     sh1['A1'].font = Font(bold=True, size=11)
     sh1['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
@@ -239,9 +249,6 @@ def write_to_spreadsheet():
     sh1['D1'].font = Font(bold=True, size=11)
     sh1['D1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
     sh1['D1'].alignment = Alignment(horizontal='center')
-    sh1['E1'].font = Font(bold=True, size=11)
-    sh1['E1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
-    sh1['E1'].alignment = Alignment(horizontal='center')
     rnum = 2
     sh1.column_dimensions['A'].width = (11.95)
     sh1.column_dimensions['B'].width = (10.6)
@@ -251,78 +258,93 @@ def write_to_spreadsheet():
     for keys, values in root.new_dict.items():
         sh1_tool_list_data = sh1_ct_data[keys]  # keys is tool number, value is times used
         sh1.cell(row=rnum, column=1).value = int(keys)
-        sh1.cell(row=rnum, column=2).value = int(values)
+        # sh1.cell(row=rnum, column=2).value = int(values)
         sh1.cell(row=rnum, column=1).style = 'highlight'
-        sh1.cell(row=rnum, column=2).style = 'highlight'
+        # sh1.cell(row=rnum, column=2).style = 'highlight'
         sh1_ct_num, sh1_description, sh1_holder = sh1_tool_list_data
-        sh1.cell(row=rnum, column=3).value = sh1_ct_num
+        sh1.cell(row=rnum, column=2).value = sh1_ct_num
+        sh1.cell(row=rnum, column=2).style = 'highlight'
+        sh1.cell(row=rnum, column=3).value = sh1_description
         sh1.cell(row=rnum, column=3).style = 'highlight'
-        sh1.cell(row=rnum, column=4).value = sh1_description
+        sh1.cell(row=rnum, column=4).value = sh1_holder
         sh1.cell(row=rnum, column=4).style = 'highlight'
-        sh1.cell(row=rnum, column=5).value = sh1_holder
-        sh1.cell(row=rnum, column=5).style = 'highlight'
         if len(str(sh1_description)) > col_width2:
             col_width2 = len(str(sh1_description))
         rnum += 1
-    sh1.column_dimensions['D'].width = (col_width2 * 1.125)
+    sh1.column_dimensions['C'].width = (col_width2 * 1.125)
     # ----------------------------------------------------------
-    sh2 = wb.create_sheet(title='Single Use List')
+    # sh2 = wb.create_sheet(title='Single Use List')
+    # wb.active = 2
+    # sh2.append(['Tool Number', 'Program Number', 'CT Number', 'Description'])
+    # sh2['A1'].font = Font(bold=True)
+    # sh2['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
+    # sh2['A1'].alignment = Alignment(horizontal='center')
+    # sh2['B1'].font = Font(bold=True)
+    # sh2['B1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
+    # sh2['B1'].alignment = Alignment(horizontal='center')
+    # sh2['C1'].font = Font(bold=True, size=11)
+    # sh2['C1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
+    # sh2['C1'].alignment = Alignment(horizontal='center')
+    # sh2['D1'].font = Font(bold=True, size=11)
+    # sh2['D1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
+    # sh2['D1'].alignment = Alignment(horizontal='center')
+    # rnum = 2
+    # col_width = (max_length(root.single_list))
+    # sh2.column_dimensions['A'].width = (11.95)
+    # sh2.column_dimensions['B'].width = (col_width * 1.125)
+    # sh2.column_dimensions['C'].width = (10)
+    # col_width3 = 0
+    # for keys, values in root.single_list.items():
+    #     sh2_tool_list_data = sh1_ct_data[keys]
+    #     sh2_ct_num, sh2_description, holder = sh2_tool_list_data
+    #     sh2.cell(row=rnum, column=1).value = int(keys)
+    #     sh2.cell(row=rnum, column=2).value = (values)
+    #     sh2.cell(row=rnum, column=1).style = 'highlight'
+    #     sh2.cell(row=rnum, column=2).style = 'highlight'
+    #     sh2.cell(row=rnum, column=3).value = sh2_ct_num
+    #     sh2.cell(row=rnum, column=3).style = 'highlight'
+    #     sh2.cell(row=rnum, column=4).value = sh2_description
+    #     sh2.cell(row=rnum, column=4).style = 'highlight'
+    #     if len(str(sh2_description)) > col_width3:
+    #         col_width3 = len(str(sh2_description))
+    #     rnum += 1
+    # sh2.column_dimensions['D'].width = (col_width3 * 1.125)
+
+    # ----------------------------------------------------------
+    sh2 = wb.create_sheet(title='Programmer')
     wb.active = 2
-    sh2.append(['Tool Number', 'Program Number', 'CT Number', 'Description'])
-    sh2['A1'].font = Font(bold=True)
+    programmed_by = extract_programmer()
+    dp, jp, np, dc, jc, nc, dl, jl, ul = programmed_by
+    sh2.append(['Part Number', 'Programmer'])
+    sh2['A1'].font = Font(bold=True, size=11)
     sh2['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
     sh2['A1'].alignment = Alignment(horizontal='center')
     sh2['B1'].font = Font(bold=True)
     sh2['B1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
     sh2['B1'].alignment = Alignment(horizontal='center')
-    sh2['C1'].font = Font(bold=True, size=11)
-    sh2['C1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
-    sh2['C1'].alignment = Alignment(horizontal='center')
-    sh2['D1'].font = Font(bold=True, size=11)
-    sh2['D1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
-    sh2['D1'].alignment = Alignment(horizontal='center')
     rnum = 2
-    col_width = (max_length(root.single_list))
-    sh2.column_dimensions['A'].width = (11.95)
-    sh2.column_dimensions['B'].width = (col_width * 1.125)
-    sh2.column_dimensions['C'].width = (10)
-    col_width3 = 0
-    for keys, values in root.single_list.items():
-        sh2_tool_list_data = sh1_ct_data[keys]
-        sh2_ct_num, sh2_description, holder = sh2_tool_list_data
-        sh2.cell(row=rnum, column=1).value = int(keys)
-        sh2.cell(row=rnum, column=2).value = (values)
-        sh2.cell(row=rnum, column=1).style = 'highlight'
-        sh2.cell(row=rnum, column=2).style = 'highlight'
-        sh2.cell(row=rnum, column=3).value = sh2_ct_num
-        sh2.cell(row=rnum, column=3).style = 'highlight'
-        sh2.cell(row=rnum, column=4).value = sh2_description
-        sh2.cell(row=rnum, column=4).style = 'highlight'
-        if len(str(sh2_description)) > col_width3:
-            col_width3 = len(str(sh2_description))
+    for item in root.sorted_dave:
+
+        sh2.cell(row=rnum, column=2).value = 'Dave'
+        sh2.cell(row=2, column=2).style = 'highlight'
+        sh2.cell(row=rnum, column=1).value = item
+        sh2.cell(row=2, column=1).style = 'highlight'
         rnum += 1
-    sh2.column_dimensions['D'].width = (col_width3 * 1.125)
 
-    # ----------------------------------------------------------
-    sh3 = wb.create_sheet(title='Programmer')
-    wb.active = 3
-    programmed_by = extract_programmer()
-    dp, jp, np, dc, jc, nc, dl, jl, ul = programmed_by
-    sh3.append(['Part Number', 'Programmer'])
-    sh3['A1'].font = Font(bold=True, size=11)
-    sh3['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
-    sh3['A1'].alignment = Alignment(horizontal='center')
-    sh3['B1'].font = Font(bold=True)
-    sh3['B1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
-    sh3['B1'].alignment = Alignment(horizontal='center')
-    rnum = 2
-    for item in root.dave_list_set:
-    # for keys, values in root.programmer.items():
+    for item in root.sorted_john:
 
-        sh3.cell(row=rnum, column=2).value = 'Dave'
-        sh3.cell(row=2, column=2).style = 'highlight'
-        sh3.cell(row=rnum, column=1).value = item
-        sh3.cell(row=2, column=1).style = 'highlight'
+        sh2.cell(row=rnum, column=2).value = 'John'
+        sh2.cell(row=2, column=2).style = 'highlight'
+        sh2.cell(row=rnum, column=1).value = item
+        sh2.cell(row=2, column=1).style = 'highlight'
+        rnum += 1
+
+    for item in root.unknown_list_set:
+
+        sh2.cell(row=rnum, column=2).value = 'Unknown'
+        sh2.cell(row=2, column=2).style = 'highlight'
+        sh2.cell(row=rnum, column=1).value = item
+        sh2.cell(row=2, column=1).style = 'highlight'
         rnum += 1
 
     save_name = (('{}/{} Tool Usage Data.xlsx').format
