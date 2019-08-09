@@ -3,12 +3,8 @@ cutting tool usage data and file count by programmer.
 Note - Toolist file location is hard coded.'''
 
 # ToDo
-# get base part number from dave_list and john_list
-# unpack on line 276 has holder - see where it comes from
 # get rid of times used column
 # format column widths
-# Wrap in class
-# Add programmer list sheet
 
 import os
 import re
@@ -70,6 +66,7 @@ class Tool_list_Generator(tk.Tk):
         self.process.bind('<ButtonRelease-1>', self.extract)
 
     def extract(self, event):
+        '''Creates dictionary of file names and tools in each'''
         os.chdir(self.folder_selected)
         files = os.listdir()
         pattern1 = re.compile(r'T\d+')
@@ -85,8 +82,6 @@ class Tool_list_Generator(tk.Tk):
             self.target_files.append(item)
         self.result_dict = {}
         for item in self.target_files:
-            # item = item.replace('A', '')
-            # print(item)
             with open(item, 'r') as f:
                 file_contents = f.read()
                 match2 = pattern1.findall(file_contents)
@@ -95,7 +90,7 @@ class Tool_list_Generator(tk.Tk):
         self.write_to_spreadsheet()
 
     def is_binary(self, file_name):
-        ''' Fuction tries to open file as test and returns boolean'''
+        ''' Fuction tries to open file as text and returns boolean'''
         try:
             with open(file_name, 'tr') as check_file:
                 check_file.read()
@@ -139,10 +134,11 @@ class Tool_list_Generator(tk.Tk):
                         self.single_list[tnum] = k
 
     def get_ct_number(self, in_data):
-        '''Gets CT number from master tool list file.'''
+        '''Gets CT number, description, holder and holder data
+        from master tool list file.'''
         self.machine = self.choose_machine_combo.get()
-        tl = 'C:/Users/dkjje/Desktop/Programming/Python_Projects/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
-        # tl = 'C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'
+        tl = 'C:/Users/dkjje/Desktop/Programming/Python_Projects/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'  # noqa: E501
+        # tl = 'C:/Users/djennings/Documents/Programming/Python/SS_Master_Tool_List/King Machine Cutting Tool List.xlsx'  # noqa: E501
         wb = load_workbook(filename=tl)
         sh1 = wb.active
         t_data = {}
@@ -163,35 +159,39 @@ class Tool_list_Generator(tk.Tk):
         john_list = []
         unknown = []
         self.dave_list_set = set()
-        self.programmer = {}
+        self.john_list_set = set()
+        self.unknown = set()
+        programmer = {}
         for item in self.target_files:
             with open(item, 'r') as f:
                 file_data = f.read()
                 if 'DAVE' in file_data:
-                    self.programmer[item] = 'Dave'
+                    programmer[item] = 'Dave'
                     dave_list.append(item)
                     for item in dave_list:
                         item = item.replace('A', '').replace('B', '')
                         self.dave_list_set.add(item)
                     dave_count += 1
                 elif 'JOHN' in file_data:
-                    self.programmer[item] = 'John'
+                    programmer[item] = 'John'
                     john_list.append(item)
+                    for item in john_list:
+                        item = item.replace('A', '').replace('B', '')
+                        self.john_list_set.add(item)
                     john_count += 1
                 else:
                     unknown.append(item)
-                    self.programmer[item] = 'Unknown'
+                    programmer[item] = 'Unknown'
                     no_name += 1
-        print(self.dave_list_set)
         dave_percent = (dave_count / (dave_count + john_count + no_name) * 100)
         john_percent = (john_count / (dave_count + john_count + no_name) * 100)
         no_name_percent = (no_name / (dave_count + john_count + no_name) * 100)
-        # print(root.programmer)
         return (dave_percent, john_percent, no_name_percent,
                 dave_count, john_count, no_name, dave_list, john_list, unknown)
 
     def max_length(self, eval_string):
-        '''Function takes dictionary and returns length of longest key or value'''
+        '''Function takes dictionary and returns length of longest
+           key or value'''
         string_length = 0
         for keys, values in eval_string.items():
             if len(str(keys)) > len(str(values)) and (len(str(keys)) >
@@ -234,12 +234,12 @@ class Tool_list_Generator(tk.Tk):
         sh1.column_dimensions['C'].width = (10)
         col_width2 = 0
         sh1_ct_data = self.get_ct_number(self.new_dict)
-        for keys, values in self.new_dict.items():
-            sh1_tool_list_data = sh1_ct_data[keys]  # keys is tool number, value is times used
+        for keys, values in self.new_dict.items():  # keys is tool number, value is times used  # noqa: E501
             sh1.cell(row=rnum, column=1).value = int(keys)
             sh1.cell(row=rnum, column=2).value = int(values)
             sh1.cell(row=rnum, column=1).style = 'highlight'
             sh1.cell(row=rnum, column=2).style = 'highlight'
+            sh1_tool_list_data = sh1_ct_data[keys]
             sh1_ct_num, sh1_description, sh1_holder = sh1_tool_list_data
             sh1.cell(row=rnum, column=3).value = sh1_ct_num
             sh1.cell(row=rnum, column=3).style = 'highlight'
@@ -254,7 +254,8 @@ class Tool_list_Generator(tk.Tk):
         # ----------------------------------------------------------
         sh2 = wb.create_sheet(title='Single Use List')
         wb.active = 2
-        sh2.append(['Tool Number', 'Program Number', 'CT Number', 'Description'])
+        sh2.append(['Tool Number', 'Program Number', 'CT Number',
+                   'Description'])
         sh2['A1'].font = Font(bold=True)
         sh2['A1'].border = Border(left=bd, top=bd, right=bd, bottom=bd)
         sh2['A1'].alignment = Alignment(horizontal='center')
@@ -272,7 +273,8 @@ class Tool_list_Generator(tk.Tk):
         sh2.column_dimensions['A'].width = (11.95)
         sh2.column_dimensions['B'].width = (col_width * 1.125)
         sh2.column_dimensions['C'].width = (10)
-        col_width3 = 0
+        col_width4 = 0
+        col_width5 = 0
         for keys, values in self.single_list.items():
             sh2_tool_list_data = sh1_ct_data[keys]
             sh2_ct_num, sh2_description, holder = sh2_tool_list_data
@@ -284,10 +286,13 @@ class Tool_list_Generator(tk.Tk):
             sh2.cell(row=rnum, column=3).style = 'highlight'
             sh2.cell(row=rnum, column=4).value = sh2_description
             sh2.cell(row=rnum, column=4).style = 'highlight'
-            if len(str(sh2_description)) > col_width3:
-                col_width3 = len(str(sh2_description))
+            if len(str(sh2_description)) > col_width4:
+                col_width4 = len(str(sh2_description))
+            if len(str(holder)) > col_width5:
+                col_width5 = len(str(holder))
             rnum += 1
-        sh2.column_dimensions['D'].width = (col_width3 * 1.125)
+        sh2.column_dimensions['D'].width = (col_width4 * 1.125)
+        sh2.column_dimensions['E'].width = (col_width5 * 1.125)
 
         # ----------------------------------------------------------
         sh3 = wb.create_sheet(title='Programmer')
@@ -303,14 +308,23 @@ class Tool_list_Generator(tk.Tk):
         sh3['B1'].alignment = Alignment(horizontal='center')
         rnum = 2
         for item in self.dave_list_set:
-            # for keys, values in root.programmer.items():
-
             sh3.cell(row=rnum, column=2).value = 'Dave'
             sh3.cell(row=2, column=2).style = 'highlight'
             sh3.cell(row=rnum, column=1).value = item
             sh3.cell(row=2, column=1).style = 'highlight'
             rnum += 1
-
+        for item in self.john_list_set:
+            sh3.cell(row=rnum, column=2).value = 'John'
+            sh3.cell(row=2, column=2).style = 'highlight'
+            sh3.cell(row=rnum, column=1).value = item
+            sh3.cell(row=2, column=1).style = 'highlight'
+            rnum += 1
+        for item in self.unknown:
+            sh3.cell(row=rnum, column=2).value = 'Unknown'
+            sh3.cell(row=2, column=2).style = 'highlight'
+            sh3.cell(row=rnum, column=1).value = item
+            sh3.cell(row=2, column=1).style = 'highlight'
+            rnum += 1
         save_name = (('{}/{} Tool Usage Data.xlsx').format
                      (self.folder_selected, self.machine))
         wb.save(save_name)
